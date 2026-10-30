@@ -474,6 +474,7 @@
       const und = state.rows.find((r) => r.ticker.toUpperCase() === UNDERLYING) ?? state.rows.find((r) => r.ticker.toUpperCase().startsWith(UNDERLYING));
       if (!und) throw new Error(`No se encontró el subyacente ${UNDERLYING}`);
       state.spot = und.last > 0 ? und.last : (und.bid + und.ask) / 2;
+      state.und = und;
       state.spotChg = und.chg;
       state.lastUpdate = und.lastUpdate?.split(" ")[1] ?? null;
 
@@ -486,6 +487,7 @@
       const used = renderStrategies();
       renderChain(used);
       Builder.onData();
+      Par.renderVisible();
       banner(state.selected.month % 2 ? `Atención: ${state.selected.label} es un vencimiento impar, normalmente sin liquidez.` : null);
     } catch (e) {
       console.error(e);
@@ -507,6 +509,7 @@
     state.selected = state.expiries.find((x) => x.code === e.target.value) ?? state.selected;
     renderHeader();
     renderChain(renderStrategies());
+    Par.renderVisible();
     banner(state.selected.month % 2 ? `Atención: ${state.selected.label} es un vencimiento impar, normalmente sin liquidez.` : null);
   });
 
@@ -517,7 +520,10 @@
     document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
     try { localStorage.setItem(TAB_KEY, name); } catch { /* storage no disponible */ }
     // Chart.js sólo mide contenedores visibles.
-    if (name === "builder") Builder.render(); else state.charts.forEach((c) => c.resize());
+    if (name === "builder") Builder.render();
+    else if (name === "puts") Par.render("P");
+    else if (name === "calls") Par.render("C");
+    else state.charts.forEach((c) => c.resize());
   }
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
@@ -677,12 +683,120 @@
     return { onData() { fillExpiries(); render(); }, render };
   })();
 
+  // ---------- PUTs / CALLs bajo la par ----------
+  // PUT: compro GGAL (ask) + compro PUT (ask) → a vencimiento tengo asegurado al menos la Base.
+  // CALL: compro GGAL (ask) + vendo CALL ITM (bid) → si me ejercen cobro la Base.
+  // En ambos, resultado asegurado = Base − costo de armar; positivo = "bajo la par".
+  const Par = (() => {
+    const charts = { P: null, C: null };
+
+    function compute(kind) {
+      const ex = state.selected;
+      const und = state.und;
+      if (!ex || !und) return null;
+      const sAsk = und.ask > 0 ? und.ask : state.spot;
+      const days = Math.max(1, (ex.date - new Date()) / 86400000);
+      // CALLs: sólo bases ITM (≤ GGAL); en las OTM el resultado depende de que la acción suba, no está asegurado.
+      const rows = ex.strikes.filter((s) => s[kind] && (kind === "P" || s.strike <= sAsk)).map((s) => {
+        const o = s[kind];
+        const prem = kind === "P" ? o.ask : o.bid;
+        const size = kind === "P" ? o.askSize : o.bidSize;
+        const hasQuote = prem > 0 && size >= 1;
+        const armar = hasQuote ? (kind === "P" ? sAsk + prem : sAsk - prem) : NaN;
+        const res = s.strike - armar;
+        const ratio = res / armar;
+        return { o, strike: s.strike, hasQuote, armar, res, ratio, tna: ratio * 365 / days };
+      });
+      return { ex, sAsk, days, rows };
+    }
+
+    function render(kind) {
+      const card = document.querySelector(`.par-card[data-kind="${kind}"]`);
+      const tbody = card.querySelector("tbody");
+      const d = compute(kind);
+      if (charts[kind]) { charts[kind].destroy(); charts[kind] = null; }
+      if (!d) { tbody.innerHTML = ""; return; }
+
+      card.querySelector(".par-expiry").textContent = `${d.ex.label} · ${Math.round(d.days)} días`;
+      const best = d.rows.filter((r) => r.hasQuote && r.res > 0).sort((a, b) => b.ratio - a.ratio)[0];
+      card.querySelector(".par-spot").innerHTML = `
+        <div class="label">GGAL ask</div>
+        <div class="value mono" style="color:var(--accent2)">$ ${fmt(d.sAsk)}</div>
+        <div class="per">${best ? `Mejor: ${best.o.ticker} · ${pct(best.ratio)} (TNA ${pct(best.tna)})` : "Ninguna base bajo la par con puntas"}</div>`;
+
+      tbody.innerHTML = d.rows.map((r) => {
+        const cls = !r.hasQuote ? "noq" : r.res > 0 ? "pos" : "neg";
+        return `<tr class="${cls}">
+          <td>${r.o.ticker}</td>
+          <td class="base">${fmt0(r.strike)}</td>
+          <td>${fmt0(r.o.bidSize)}</td><td>${fmt(r.o.bid)}</td><td>${fmt(r.o.ask)}</td><td>${fmt0(r.o.askSize)}</td>
+          <td>${fmt(r.armar)}</td>
+          <td class="res">${r.hasQuote ? `${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))}` : "—"}</td>
+          <td class="res">${r.hasQuote ? `${r.res >= 0 ? "+" : "−"}$ ${fmt0(Math.abs(r.res) * CONTRACT_SIZE)}` : "—"}</td>
+          <td class="res">${r.hasQuote ? pct(r.ratio) : "—"}</td>
+          <td class="res">${r.hasQuote ? pct(r.tna) : "—"}</td>
+        </tr>`;
+      }).join("");
+
+      if (!card.closest(".tab-panel").classList.contains("active")) return;
+      const quoted = d.rows.filter((r) => r.hasQuote);
+      const labels = quoted.map((r) => fmt0(r.strike));
+      const vals = [...quoted.map((r) => r.strike), ...quoted.map((r) => r.armar), d.sAsk];
+      const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.08 || 1;
+      charts[kind] = new Chart(document.getElementById(`chart-par-${kind}`), {
+        data: {
+          labels,
+          datasets: [
+            {
+              type: "bar", label: kind === "P" ? "Base (venta asegurada)" : "Base (cobro si ejercen)", data: quoted.map((r) => r.strike),
+              backgroundColor: quoted.map((r) => (r.res > 0 ? "rgba(34,227,154,0.55)" : "rgba(255,77,109,0.45)")),
+              borderColor: quoted.map((r) => (r.res > 0 ? "#22e39a" : "#ff4d6d")), borderWidth: 1.5, borderRadius: 4, order: 2,
+            },
+            {
+              type: "line", label: "Breakeven (costo de armar)", data: quoted.map((r) => r.armar),
+              borderColor: "#ffb84d", backgroundColor: "#ffb84d", borderWidth: 2.5, pointRadius: 4, pointStyle: "rectRot", tension: 0.25, order: 1,
+            },
+            {
+              type: "line", label: "GGAL ask", data: quoted.map(() => d.sAsk),
+              borderColor: "#00d4ff", borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, order: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: true, labels: { boxWidth: 12, usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                title: (items) => `${quoted[items[0].dataIndex].o.ticker}`,
+                label: (it) => ` ${it.dataset.label}: $ ${fmt(it.parsed.y)}`,
+                afterBody: (items) => { const r = quoted[items[0].dataIndex]; return [`Resultado: ${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))} (${pct(r.ratio)} · TNA ${pct(r.tna)})`]; },
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#8a93a8" } },
+            y: { min: lo - pad, max: hi + pad, grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#8a93a8", callback: (v) => fmt0(v) } },
+          },
+        },
+      });
+    }
+
+    function renderVisible() {
+      if ($("#tab-puts").classList.contains("active")) render("P");
+      else if ($("#tab-calls").classList.contains("active")) render("C");
+    }
+
+    return { render, renderVisible };
+  })();
+
   Chart.defaults.font.family = "'JetBrains Mono', monospace";
   Chart.defaults.color = "#8a93a8";
   let savedTab = "auto";
   try { savedTab = localStorage.getItem(TAB_KEY) || "auto"; } catch { /* ignore */ }
-  if (location.hash === "#builder") savedTab = "builder";
-  if (location.hash === "#auto") savedTab = "auto";
+  const hashTab = location.hash.slice(1);
+  if (["auto", "builder", "puts", "calls"].includes(hashTab)) savedTab = hashTab;
   showTab(savedTab);
   refresh();
   setAuto(true);

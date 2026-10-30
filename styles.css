@@ -301,6 +301,21 @@ html, body {
 .legs td.num.green { color: var(--green); }
 .legs td.num.red { color: var(--red); }
 
+/* ---------- Bajo la par ---------- */
+.par-card { --card-accent: linear-gradient(90deg, #22e39a, #ffb84d, #ff4d6d); }
+.par-card .card-head .sub { max-width: 820px; line-height: 1.4; }
+.par-card .card-head .sub b { color: var(--text); }
+.par-card .table-wrap { max-height: 600px; margin-top: 8px; }
+.par-table th:first-child, .par-table td:first-child { text-align: left; }
+.par-table tr.pos td { color: var(--text); }
+.par-table tr.pos { background: rgba(34, 227, 154, 0.10); }
+.par-table tr.neg { background: rgba(255, 77, 109, 0.08); }
+.par-table tr.pos td.res { color: var(--green); font-weight: 700; }
+.par-table tr.neg td.res { color: var(--red); font-weight: 700; }
+.par-table tr.noq td { opacity: .45; }
+.par-table tr.noq { background: transparent; }
+.par-table td.base { font-weight: 700; color: var(--text); }
+
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; padding: 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }

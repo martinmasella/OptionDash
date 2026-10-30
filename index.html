@@ -51,6 +51,8 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="auto" role="tab">Estrategias armables</button>
     <button class="tab" data-tab="builder" role="tab">Estrategia armada</button>
+    <button class="tab" data-tab="puts" role="tab">PUTs bajo la par</button>
+    <button class="tab" data-tab="calls" role="tab">CALLs bajo la par</button>
   </nav>
 
   <section id="tab-auto" class="tab-panel active">
@@ -111,6 +113,48 @@
           <div class="chart-wrap tall"><canvas id="chart-builder"></canvas></div>
           <table class="legs" id="bLegs">
             <thead><tr><th>Operación</th><th>Contrato</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Bid</th><th class="num">Ask</th><th class="num">Neto</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="tab-puts" class="tab-panel">
+    <div class="builder">
+      <article class="card par-card" data-kind="P">
+        <div class="card-head">
+          <div>
+            <h3>PUTs bajo la par <span class="pill par-expiry"></span></h3>
+            <div class="sub">Compra de GGAL al <b>ask</b> + compra del PUT al <b>ask</b>. Si Base &gt; costo de armar, la ganancia queda asegurada a vencimiento (el PUT garantiza vender a la Base).</div>
+          </div>
+          <div class="credit par-spot"></div>
+        </div>
+        <div class="chart-wrap tall"><canvas id="chart-par-P"></canvas></div>
+        <div class="table-wrap">
+          <table class="chain par-table">
+            <thead><tr><th>Contrato</th><th>Base</th><th>BidSz</th><th>Bid</th><th>Ask</th><th>AskSz</th><th>Armar (GGAL + PUT)</th><th>Resultado / acc.</th><th>Resultado / lote</th><th>Rendimiento</th><th>TNA</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="tab-calls" class="tab-panel">
+    <div class="builder">
+      <article class="card par-card" data-kind="C">
+        <div class="card-head">
+          <div>
+            <h3>CALLs bajo la par <span class="pill par-expiry"></span></h3>
+            Lanzamiento cubierto ITM: compra de GGAL al <b>ask</b> + venta del CALL al <b>bid</b>. Si Base &gt; costo neto de armar, la ganancia queda asegurada siempre que GGAL cierre por encima de la Base (te ejercen). Solo se muestran bases ITM (≤ GGAL).
+          </div>
+          <div class="credit par-spot"></div>
+        </div>
+        <div class="chart-wrap tall"><canvas id="chart-par-C"></canvas></div>
+        <div class="table-wrap">
+          <table class="chain par-table">
+            <thead><tr><th>Contrato</th><th>Base</th><th>BidSz</th><th>Bid</th><th>Ask</th><th>AskSz</th><th>Armar (GGAL − CALL)</th><th>Resultado / acc.</th><th>Resultado / lote</th><th>Rendimiento</th><th>TNA</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>

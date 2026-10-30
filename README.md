@@ -18,6 +18,10 @@ ganancia/pérdida máxima, breakevens, gráfico de payoff y la cadena de opcione
   cantidad y precio (precargado con bid/ask de mercado, editable) y se dibuja el payoff al instante.
   La estrategia en curso y las guardadas con nombre se persisten en el `localStorage` del navegador
   (quedan en ese dispositivo/navegador; no se sincronizan). `index.html#builder` abre directo esa solapa.
+- **PUTs bajo la par**: compra GGAL (ask) + compra PUT (ask). Resultado asegurado = Base − costo de armar.
+  Tabla en verde/rojo y gráfico de barras (Base) con la línea de breakeven (costo de armar), rendimiento y TNA.
+- **CALLs bajo la par**: lanzamiento cubierto ITM, compra GGAL (ask) + venta CALL (bid), solo bases ≤ GGAL.
+  Misma tabla y gráfico. `#puts` / `#calls` abren esas solapas.
 
 ## Uso local
 
