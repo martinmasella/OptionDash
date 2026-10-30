@@ -189,27 +189,6 @@
     return { legs: [leg(ex, "P", Kp, -1), leg(ex, "C", Kc, -1)], desc: `Venta PUT ${Kp} (−${pct(1 - Kp / S)}) + venta CALL ${Kc} (+${pct(Kc / S - 1)})` };
   }
 
-  // Long call butterfly: buy K1, sell 2×K2 (ATM), buy K3 — symmetric wings when possible.
-  function butterfly(ex, S) {
-    const ks = liquidStrikes(ex, "C");
-    const K2 = nearest(ks, S);
-    if (K2 == null) return null;
-    const lower = ks.filter((k) => k < K2).sort((a, b) => b - a);
-    const upper = ks.filter((k) => k > K2).sort((a, b) => a - b);
-    if (!lower.length || !upper.length) return null;
-    let K1 = null, K3 = null;
-    for (const lo of lower) {
-      const target = K2 + (K2 - lo);
-      if (upper.includes(target)) { K1 = lo; K3 = target; break; }
-    }
-    const broken = K1 == null;
-    if (broken) { K1 = lower[0]; K3 = upper[0]; }
-    return {
-      legs: [leg(ex, "C", K1, 1), leg(ex, "C", K2, -2), leg(ex, "C", K3, 1)],
-      desc: `Compra CALL ${K1} + venta 2× CALL ${K2} + compra CALL ${K3}${broken ? " (alas asimétricas)" : ""}`,
-    };
-  }
-
   // Iron condor: short strikes ~10% away, long wings on the next liquid strike outward.
   function ironCondor(ex, S) {
     const puts = liquidStrikes(ex, "P"), calls = liquidStrikes(ex, "C");
@@ -228,7 +207,6 @@
   const STRATEGIES = [
     { id: "straddle", name: "Straddle vendido", accent: "linear-gradient(90deg,#7c5cff,#00d4ff)", build: straddle, hint: "Bases más ATM" },
     { id: "strangle", name: "Strangle vendido", accent: "linear-gradient(90deg,#00d4ff,#22e39a)", build: strangle, hint: "≈10% fuera del dinero" },
-    { id: "butterfly", name: "Butterfly comprado", accent: "linear-gradient(90deg,#ffb84d,#ff4d6d)", build: butterfly, hint: "Cuerpo vendido en la base ATM" },
     { id: "condor", name: "Iron Condor vendido", accent: "linear-gradient(90deg,#ff4d6d,#7c5cff)", build: ironCondor, hint: "Cortos a ≈10%, alas siguientes" },
   ];
 

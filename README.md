@@ -5,8 +5,7 @@ Lee en tiempo real la hoja «Sabro» de un Google Sheet público y arma automát
 
 1. Straddle vendido (bases ATM)
 2. Strangle vendido (≈ ±10 %)
-3. Butterfly comprado (cuerpo ATM)
-4. Iron Condor vendido (cortos ≈ ±10 %, alas en la siguiente base líquida)
+3. Iron Condor vendido (cortos ≈ ±10 %, alas en la siguiente base líquida)
 
 Solo usa contratos con ≥ 1 lote en bid y ask. Muestra prima neta, rendimiento sobre el subyacente,
 ganancia/pérdida máxima, breakevens, gráfico de payoff y la cadena de opciones del OPEX vigente (meses pares).
