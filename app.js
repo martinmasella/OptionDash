@@ -4,7 +4,7 @@
 
   const SHEET_ID = "1W2kTK4n10-fKWYRJmoffOnxdaibkL-7I5wduSHVlGvI";
   const SHEET_GID = "1007255744"; // hoja "Sabro"
-  // JSONP (gviz) funciona incluso abriendo Index.html desde file://; los CSV quedan como respaldo.
+  // JSONP (gviz) funciona incluso abriendo index.html desde file://; los CSV quedan como respaldo.
   const JSONP_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${SHEET_GID}&headers=0&tqx=out:json;responseHandler:`;
   const SOURCES = [
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`,
