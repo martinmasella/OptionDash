@@ -27,7 +27,8 @@
   const fmt = (n, d = 2) =>
     n == null || !isFinite(n) ? "—" : n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmt0 = (n) => fmt(n, 0);
-  const pct = (n) => (n == null || !isFinite(n) ? "—" : `${(n * 100).toFixed(1)}%`);
+  const pct = (n, d = 1) => (n == null || !isFinite(n) ? "—" : `${(n * 100).toFixed(d)}%`);
+  const pct2 = (n) => pct(n, 2);
 
   const state = { rows: [], spot: null, spotChg: null, lastUpdate: null, expiries: [], selected: null, charts: [] };
 
@@ -725,7 +726,7 @@
       card.querySelector(".par-spot").innerHTML = `
         <div class="label">GGAL${d.isCI ? " CI" : ""} ask</div>
         <div class="value mono" style="color:var(--accent2)">$ ${fmt(d.sAsk)}</div>
-        <div class="per">${best ? `Mejor: ${best.o.ticker} · ${pct(best.ratio)} (TNA ${pct(best.tna)})` : "Ninguna base bajo la par con puntas"}</div>`;
+        <div class="per">${best ? `Mejor: ${best.o.ticker} · ${pct2(best.ratio)} (TNA ${pct2(best.tna)})` : "Ninguna base bajo la par con puntas"}</div>`;
 
       tbody.innerHTML = d.rows.map((r) => {
         const cls = !r.hasQuote ? "noq" : r.res > 0 ? "pos" : "neg";
@@ -736,8 +737,8 @@
           <td>${fmt(r.armar)}</td>
           <td class="res">${r.hasQuote ? `${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))}` : "—"}</td>
           <td class="res">${r.hasQuote ? `${r.res >= 0 ? "+" : "−"}$ ${fmt0(Math.abs(r.res) * CONTRACT_SIZE)}` : "—"}</td>
-          <td class="res">${r.hasQuote ? pct(r.ratio) : "—"}</td>
-          <td class="res">${r.hasQuote ? pct(r.tna) : "—"}</td>
+          <td class="res">${r.hasQuote ? pct2(r.ratio) : "—"}</td>
+          <td class="res">${r.hasQuote ? pct2(r.tna) : "—"}</td>
         </tr>`;
       }).join("");
 
@@ -774,7 +775,7 @@
               callbacks: {
                 title: (items) => `${quoted[items[0].dataIndex].o.ticker}`,
                 label: (it) => ` ${it.dataset.label}: $ ${fmt(it.parsed.y)}`,
-                afterBody: (items) => { const r = quoted[items[0].dataIndex]; return [`Resultado: ${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))} (${pct(r.ratio)} · TNA ${pct(r.tna)})`]; },
+                afterBody: (items) => { const r = quoted[items[0].dataIndex]; return [`Resultado: ${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))} (${pct2(r.ratio)} · TNA ${pct2(r.tna)})`]; },
               },
             },
           },
