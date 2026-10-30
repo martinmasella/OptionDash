@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OptionDash by Tinchex Capital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="logo.jpg" alt="Martín Masella" />
+      <div>
+        <h1>OptionDash <span class="by">by Tinchex Capital</span></h1>
+        <p>Estrategias de volatilidad · GGAL · BYMA</p>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="stat">
+        <span class="label">GGAL</span>
+        <span class="value mono" id="spot">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">OPEX</span>
+        <select id="expirySelect" class="select mono"></select>
+      </div>
+      <div class="stat">
+        <span class="label">Vence</span>
+        <span class="value mono" id="expiryDate">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Actualizado</span>
+        <span class="value mono" id="lastUpdate">—</span>
+      </div>
+      <button id="refreshBtn" class="btn" title="Actualizar ahora">↻ Actualizar</button>
+      <label class="toggle" title="Auto-actualizar cada 30s">
+        <input type="checkbox" id="autoRefresh" checked />
+        <span>Auto</span>
+      </label>
+    </div>
+  </header>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <main class="grid" id="strategies">
+    <!-- Las tarjetas se generan desde app.js -->
+  </main>
+
+  <section class="chain-section">
+    <div class="section-head">
+      <h2>Cadena de opciones <span id="chainExpiry" class="pill"></span></h2>
+      <p>Solo se usan para las estrategias los contratos con ≥ 1 lote en bid y ask (resaltados).</p>
+    </div>
+    <div class="table-wrap">
+      <table class="chain" id="chainTable">
+        <thead>
+          <tr>
+            <th colspan="5" class="call-head">CALL</th>
+            <th class="strike-head">Strike</th>
+            <th colspan="5" class="put-head">PUT</th>
+          </tr>
+          <tr>
+            <th>BidSz</th><th>Bid</th><th>Last</th><th>Ask</th><th>AskSz</th>
+            <th></th>
+            <th>BidSz</th><th>Bid</th><th>Last</th><th>Ask</th><th>AskSz</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Fuente: Google Sheet «Sabro» · Venta al <b>bid</b>, compra al <b>ask</b> · 1 contrato = 100 acciones · Rendimiento = prima neta / (GGAL × 100) · Payoff a vencimiento, sin comisiones.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
