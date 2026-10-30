@@ -1,4 +1,4 @@
-# OptionDash by Tinchex Capital
+# Options Dashboard by Tinchex Capital
 
 Dashboard estático de estrategias de volatilidad sobre opciones de **GGAL (BYMA)**.
 Lee en tiempo real la hoja «Sabro» de un Google Sheet público y arma automáticamente:
