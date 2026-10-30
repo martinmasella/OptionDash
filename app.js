@@ -14,7 +14,11 @@
   const OPTION_PREFIX = "GFG";
   const CONTRACT_SIZE = 100;
   const REFRESH_MS = 30_000;
-  const WING_PCT = 0.10;
+  const WING_KEY = "optiondash.wing";
+  // Distancia (%) de los strikes vendidos respecto del spot; configurable desde el header.
+  let WING_PCT = 0.10;
+  try { const w = parseFloat(localStorage.getItem(WING_KEY)); if (w >= 0.05 && w <= 0.30) WING_PCT = w; } catch { /* ignore */ }
+  const wingLabel = () => `${Math.round(WING_PCT * 100)}%`;
 
   // BYMA month codes: 2 letters normally, 1 letter when the strike has 5 digits.
   const MONTH_CODES = {
@@ -206,8 +210,8 @@
 
   const STRATEGIES = [
     { id: "straddle", name: "Straddle vendido", accent: "linear-gradient(90deg,#7c5cff,#00d4ff)", build: straddle, hint: "Bases más ATM" },
-    { id: "strangle", name: "Strangle vendido", accent: "linear-gradient(90deg,#00d4ff,#22e39a)", build: strangle, hint: "≈10% fuera del dinero" },
-    { id: "condor", name: "Iron Condor vendido", accent: "linear-gradient(90deg,#ff4d6d,#7c5cff)", build: ironCondor, hint: "Cortos a ≈10%, alas siguientes" },
+    { id: "strangle", name: "Strangle vendido", accent: "linear-gradient(90deg,#00d4ff,#22e39a)", build: strangle, hint: () => `≈${wingLabel()} fuera del dinero` },
+    { id: "condor", name: "Iron Condor vendido", accent: "linear-gradient(90deg,#ff4d6d,#7c5cff)", build: ironCondor, hint: () => `Cortos a ≈${wingLabel()}, alas siguientes` },
   ];
 
   // ---------- Payoff math ----------
@@ -335,7 +339,7 @@
       const built = st.build(ex, S);
       if (!built || built.legs.some((l) => !l)) {
         card.classList.add("empty");
-        card.innerHTML = `<div class="card-head"><div><h3>${st.name}</h3><div class="sub">${st.hint}</div></div></div>
+        card.innerHTML = `<div class="card-head"><div><h3>${st.name}</h3><div class="sub">${typeof st.hint === "function" ? st.hint() : st.hint}</div></div></div>
           <p>No hay contratos con puntas (≥1 lote en bid y ask) suficientes para armar esta estrategia en ${ex.label}.</p>`;
         grid.appendChild(card);
         return;
@@ -486,6 +490,12 @@
 
   $("#refreshBtn").addEventListener("click", refresh);
   $("#autoRefresh").addEventListener("change", (e) => setAuto(e.target.checked));
+  $("#wingSelect").value = WING_PCT.toFixed(2);
+  $("#wingSelect").addEventListener("change", (e) => {
+    WING_PCT = parseFloat(e.target.value);
+    try { localStorage.setItem(WING_KEY, e.target.value); } catch { /* ignore */ }
+    if (state.selected) renderChain(renderStrategies());
+  });
   $("#expirySelect").addEventListener("change", (e) => {
     state.selected = state.expiries.find((x) => x.code === e.target.value) ?? state.selected;
     renderHeader();

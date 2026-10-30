@@ -31,6 +31,17 @@
         <select id="expirySelect" class="select mono"></select>
       </div>
       <div class="stat">
+        <span class="label">Apertura</span>
+        <select id="wingSelect" class="select mono" title="Distancia de los strikes vendidos respecto del spot (Strangle e Iron Condor)">
+          <option value="0.05">5%</option>
+          <option value="0.10" selected>10%</option>
+          <option value="0.15">15%</option>
+          <option value="0.20">20%</option>
+          <option value="0.25">25%</option>
+          <option value="0.30">30%</option>
+        </select>
+      </div>
+      <div class="stat">
         <span class="label">Vence</span>
         <span class="value mono" id="expiryDate">—</span>
       </div>
