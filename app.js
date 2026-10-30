@@ -475,6 +475,8 @@
       if (!und) throw new Error(`No se encontró el subyacente ${UNDERLYING}`);
       state.spot = und.last > 0 ? und.last : (und.bid + und.ask) / 2;
       state.und = und;
+      // Las opciones liquidan contado inmediato: para "bajo la par" se usa GGAL - CI si está en la hoja.
+      state.undCI = state.rows.find((r) => /^GGAL\s*-?\s*CI$/i.test(r.ticker.trim())) ?? und;
       state.spotChg = und.chg;
       state.lastUpdate = und.lastUpdate?.split(" ")[1] ?? null;
 
@@ -692,9 +694,10 @@
 
     function compute(kind) {
       const ex = state.selected;
-      const und = state.und;
+      const und = state.undCI ?? state.und;
       if (!ex || !und) return null;
       const sAsk = und.ask > 0 ? und.ask : state.spot;
+      const isCI = und !== state.und;
       const days = Math.max(1, (ex.date - new Date()) / 86400000);
       // CALLs: sólo bases ITM (≤ GGAL); en las OTM el resultado depende de que la acción suba, no está asegurado.
       const rows = ex.strikes.filter((s) => s[kind] && (kind === "P" || s.strike <= sAsk)).map((s) => {
@@ -707,7 +710,7 @@
         const ratio = res / armar;
         return { o, strike: s.strike, hasQuote, armar, res, ratio, tna: ratio * 365 / days };
       });
-      return { ex, sAsk, days, rows };
+      return { ex, sAsk, days, rows, isCI };
     }
 
     function render(kind) {
@@ -720,7 +723,7 @@
       card.querySelector(".par-expiry").textContent = `${d.ex.label} · ${Math.round(d.days)} días`;
       const best = d.rows.filter((r) => r.hasQuote && r.res > 0).sort((a, b) => b.ratio - a.ratio)[0];
       card.querySelector(".par-spot").innerHTML = `
-        <div class="label">GGAL ask</div>
+        <div class="label">GGAL${d.isCI ? " CI" : ""} ask</div>
         <div class="value mono" style="color:var(--accent2)">$ ${fmt(d.sAsk)}</div>
         <div class="per">${best ? `Mejor: ${best.o.ticker} · ${pct(best.ratio)} (TNA ${pct(best.tna)})` : "Ninguna base bajo la par con puntas"}</div>`;
 
