@@ -48,6 +48,12 @@
 
   <div id="banner" class="banner hidden"></div>
 
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="auto" role="tab">Estrategias armables</button>
+    <button class="tab" data-tab="builder" role="tab">Estrategia armada</button>
+  </nav>
+
+  <section id="tab-auto" class="tab-panel active">
   <main class="grid" id="strategies">
     <!-- Las tarjetas se generan desde app.js -->
   </main>
@@ -73,6 +79,42 @@
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+  </section>
+  </section>
+
+  <section id="tab-builder" class="tab-panel">
+    <div class="builder">
+      <article class="card builder-card">
+        <div class="builder-top">
+          <input id="bName" class="input name" type="text" placeholder="Nombre de la estrategia" maxlength="40" />
+          <select id="bSaved" class="select"><option value="">Guardadas…</option></select>
+          <button id="bSave" class="btn small">💾 Guardar</button>
+          <button id="bNew" class="btn small ghost">➕ Nueva</button>
+          <button id="bDelete" class="btn small ghost danger">🗑 Eliminar guardada</button>
+        </div>
+
+        <div class="leg-form">
+          <label>Vencimiento<select id="bExpiry" class="select"></select></label>
+          <label>Instrumento<select id="bType" class="select"><option value="C">CALL</option><option value="P">PUT</option><option value="S">GGAL (acciones)</option></select></label>
+          <label>Base<select id="bStrike" class="select"></select></label>
+          <label>Operación<select id="bSide" class="select"><option value="1">Compra</option><option value="-1">Venta</option></select></label>
+          <label>Cantidad<input id="bQty" class="input" type="number" min="1" step="1" value="1" /></label>
+          <label>Precio<input id="bPrice" class="input" type="number" min="0" step="0.01" /></label>
+          <div class="quote-hint mono" id="bQuote">—</div>
+          <button id="bAdd" class="btn">➕ Agregar pata</button>
+        </div>
+
+        <div id="bEmpty" class="builder-empty">Agregá patas para ver el payoff. Todo se guarda automáticamente en este navegador.</div>
+        <div id="bResult" class="hidden">
+          <div id="bSummary"></div>
+          <div class="chart-wrap tall"><canvas id="chart-builder"></canvas></div>
+          <table class="legs" id="bLegs">
+            <thead><tr><th>Operación</th><th>Contrato</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Bid</th><th class="num">Ask</th><th class="num">Neto</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
     </div>
   </section>
 

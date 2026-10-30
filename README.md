@@ -11,6 +11,14 @@ Lee en tiempo real la hoja «Sabro» de un Google Sheet público y arma automát
 Solo usa contratos con ≥ 1 lote en bid y ask. Muestra prima neta, rendimiento sobre el subyacente,
 ganancia/pérdida máxima, breakevens, gráfico de payoff y la cadena de opciones del OPEX vigente (meses pares).
 
+## Solapas
+
+- **Estrategias armables**: las cuatro estrategias automáticas de arriba más la cadena de opciones.
+- **Estrategia armada**: armador manual. Elegís vencimiento, CALL/PUT o acciones GGAL, base, compra/venta,
+  cantidad y precio (precargado con bid/ask de mercado, editable) y se dibuja el payoff al instante.
+  La estrategia en curso y las guardadas con nombre se persisten en el `localStorage` del navegador
+  (quedan en ese dispositivo/navegador; no se sincronizan). `index.html#builder` abre directo esa solapa.
+
 ## Uso local
 
 Abrí `index.html` con doble clic. No requiere servidor ni build.

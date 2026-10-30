@@ -232,7 +232,8 @@
   ];
 
   // ---------- Payoff math ----------
-  const intrinsic = (l, s) => (l.type === "C" ? Math.max(s - l.strike, 0) : Math.max(l.strike - s, 0));
+  // "S" = acciones del subyacente: su valor a vencimiento es el propio precio.
+  const intrinsic = (l, s) => (l.type === "C" ? Math.max(s - l.strike, 0) : l.type === "P" ? Math.max(l.strike - s, 0) : s);
 
   function analyze(legs, S) {
     const credit = legs.reduce((acc, l) => acc - l.qty * l.price, 0);
@@ -255,7 +256,7 @@
       }
     }
 
-    const slopeRight = legs.filter((l) => l.type === "C").reduce((a, l) => a + l.qty, 0);
+    const slopeRight = legs.filter((l) => l.type !== "P").reduce((a, l) => a + l.qty, 0);
     const ys = points.map((p) => p.y).concat(payoff(0));
     let maxProfit = Math.max(...ys), maxLoss = Math.min(...ys);
     if (slopeRight > 0) maxProfit = Infinity;
@@ -285,6 +286,41 @@
   }
 
   function metric(k, v, cls = "") { return `<div class="metric"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`; }
+
+  // Rendimiento: prima cobrada (o pagada) sobre el valor del subyacente (spot × 100) que respalda un lote.
+  function yieldInfo(a, S) {
+    const yieldPct = a.credit / S;
+    return {
+      yieldPct,
+      yieldTxt: `${yieldPct >= 0 ? "+" : "−"}${pct(Math.abs(yieldPct))}`,
+      roiTxt: a.credit < 0 && isFinite(a.maxProfit) ? ` · ROI ${pct(a.maxProfit / -a.credit)}` : "",
+    };
+  }
+
+  function creditHTML(a, S) {
+    const { yieldPct, yieldTxt, roiTxt } = yieldInfo(a, S);
+    return `<div class="credit">
+      <div class="label">${a.credit < 0 ? "Débito neto" : "Prima neta"}</div>
+      <div class="value mono ${a.credit < 0 ? "neg" : ""}">${a.credit < 0 ? "−" : "+"}$ ${fmt(Math.abs(a.credit))}</div>
+      <div class="per">× ${CONTRACT_SIZE} = $ ${fmt0(a.credit * CONTRACT_SIZE)} / lote</div>
+      <div class="yield ${yieldPct < 0 ? "neg" : ""}">${yieldTxt} s/ GGAL ($ ${fmt0(S * CONTRACT_SIZE)})${roiTxt}</div>
+    </div>`;
+  }
+
+  function metricsHTML(a, S) {
+    const { yieldPct, yieldTxt } = yieldInfo(a, S);
+    const profitTxt = a.maxProfit === Infinity ? "Ilimitada" : `$ ${fmt0(a.maxProfit * CONTRACT_SIZE)}`;
+    const lossTxt = a.maxLoss === -Infinity ? "Ilimitada" : `$ ${fmt0(a.maxLoss * CONTRACT_SIZE)}`;
+    const be = a.breakevens.length ? a.breakevens.map((b) => fmt0(b)).join(" / ") : "—";
+    const range = a.breakevens.length === 2 ? `${pct(a.breakevens[0] / S - 1)} … +${pct(a.breakevens[1] / S - 1)}` : "—";
+    return `<div class="metrics">
+      ${metric(a.credit < 0 ? "Costo s/ subyacente" : "Rendimiento s/ subyacente", yieldTxt, yieldPct < 0 ? "red" : "green")}
+      ${metric("Ganancia máx.", profitTxt, "green")}
+      ${metric("Pérdida máx.", lossTxt, "red")}
+      ${metric("Breakeven", be, "amber")}
+      ${metric("Rango BE", range)}
+    </div>`;
+  }
 
   function legsTable(legs) {
     const rows = legs.map((l) => `
@@ -327,33 +363,13 @@
       }
       const a = analyze(built.legs, S);
       built.legs.forEach((l) => used.add(`${l.type}${l.strike}`));
-      const profitTxt = a.maxProfit === Infinity ? "Ilimitada" : `$ ${fmt0(a.maxProfit * CONTRACT_SIZE)}`;
-      const lossTxt = a.maxLoss === -Infinity ? "Ilimitada" : `$ ${fmt0(a.maxLoss * CONTRACT_SIZE)}`;
-      const be = a.breakevens.length ? a.breakevens.map((b) => fmt0(b)).join(" / ") : "—";
-      const range = a.breakevens.length === 2 ? `${pct(a.breakevens[0] / S - 1)} … +${pct(a.breakevens[1] / S - 1)}` : "—";
-      // Rendimiento: prima cobrada (o pagada) sobre el valor del subyacente (spot × 100) que respalda un lote.
-      const notional = S * CONTRACT_SIZE;
-      const yieldPct = a.credit / S;
-      const roiTxt = a.credit < 0 && isFinite(a.maxProfit) ? ` · ROI ${pct(a.maxProfit / -a.credit)}` : "";
-      const yieldTxt = `${yieldPct >= 0 ? "+" : "−"}${pct(Math.abs(yieldPct))}`;
 
       card.innerHTML = `
         <div class="card-head">
           <div><h3>${st.name}</h3><div class="sub">${built.desc}</div></div>
-          <div class="credit">
-            <div class="label">${a.credit < 0 ? "Débito neto" : "Prima neta"}</div>
-            <div class="value mono ${a.credit < 0 ? "neg" : ""}">${a.credit < 0 ? "−" : "+"}$ ${fmt(Math.abs(a.credit))}</div>
-            <div class="per">× ${CONTRACT_SIZE} = $ ${fmt0(a.credit * CONTRACT_SIZE)} / lote</div>
-            <div class="yield ${yieldPct < 0 ? "neg" : ""}">${yieldTxt} s/ GGAL ($ ${fmt0(notional)})${roiTxt}</div>
-          </div>
+          ${creditHTML(a, S)}
         </div>
-        <div class="metrics">
-          ${metric(a.credit < 0 ? "Costo s/ subyacente" : "Rendimiento s/ subyacente", yieldTxt, yieldPct < 0 ? "red" : "green")}
-          ${metric("Ganancia máx.", profitTxt, "green")}
-          ${metric("Pérdida máx.", lossTxt, "red")}
-          ${metric("Breakeven", be, "amber")}
-          ${metric("Rango BE", range)}
-        </div>
+        ${metricsHTML(a, S)}
         <div class="chart-wrap"><canvas id="chart-${st.id}"></canvas></div>
         ${legsTable(built.legs)}`;
       grid.appendChild(card);
@@ -469,6 +485,7 @@
       renderHeader();
       const used = renderStrategies();
       renderChain(used);
+      Builder.onData();
       banner(state.selected.month % 2 ? `Atención: ${state.selected.label} es un vencimiento impar, normalmente sin liquidez.` : null);
     } catch (e) {
       console.error(e);
@@ -493,8 +510,180 @@
     banner(state.selected.month % 2 ? `Atención: ${state.selected.label} es un vencimiento impar, normalmente sin liquidez.` : null);
   });
 
+  // ---------- Tabs ----------
+  const TAB_KEY = "optiondash.tab";
+  function showTab(name) {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
+    try { localStorage.setItem(TAB_KEY, name); } catch { /* storage no disponible */ }
+    // Chart.js sólo mide contenedores visibles.
+    if (name === "builder") Builder.render(); else state.charts.forEach((c) => c.resize());
+  }
+  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
+
+  // ---------- Estrategia armada (builder) ----------
+  // Persistencia en localStorage: { current: {name, legs:[...]}, saved: { nombre: legs[] } }
+  const Builder = (() => {
+    const KEY = "optiondash.builder.v1";
+    let data = { current: { name: "", legs: [] }, saved: {} };
+    let chart = null;
+
+    const load = () => { try { const raw = localStorage.getItem(KEY); if (raw) data = { ...data, ...JSON.parse(raw) }; } catch { /* ignore */ } };
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* ignore */ } };
+
+    const el = {
+      name: $("#bName"), saved: $("#bSaved"), btnSave: $("#bSave"), btnNew: $("#bNew"), btnDel: $("#bDelete"),
+      expiry: $("#bExpiry"), type: $("#bType"), strike: $("#bStrike"), side: $("#bSide"), qty: $("#bQty"), price: $("#bPrice"),
+      quote: $("#bQuote"), add: $("#bAdd"), empty: $("#bEmpty"), result: $("#bResult"), summary: $("#bSummary"), legs: $("#bLegs tbody"),
+    };
+
+    // Cotización actual de una pata (acciones u opción), si está en la hoja.
+    function quoteFor(leg) {
+      if (leg.type === "S") {
+        const r = state.rows.find((x) => x.ticker.toUpperCase() === UNDERLYING);
+        return r ? { ticker: UNDERLYING, bid: r.bid, ask: r.ask, last: r.last } : null;
+      }
+      const ex = state.expiries.find((e) => e.code === leg.expiry);
+      const o = ex?.strikes.find((s) => s.strike === leg.strike)?.[leg.type];
+      return o ? { ticker: o.ticker, bid: o.bid, ask: o.ask, last: o.last } : null;
+    }
+    const marketPrice = (q, side) => (q ? (side > 0 ? (q.ask > 0 ? q.ask : q.last) : (q.bid > 0 ? q.bid : q.last)) : NaN);
+
+    function fillExpiries() {
+      const cur = el.expiry.value;
+      el.expiry.innerHTML = state.expiries.map((e) => `<option value="${e.code}">${e.label}</option>`).join("");
+      el.expiry.value = state.expiries.some((e) => e.code === cur) ? cur : (state.selected?.code ?? "");
+      fillStrikes();
+    }
+
+    function fillStrikes() {
+      const type = el.type.value;
+      const isStock = type === "S";
+      el.strike.disabled = isStock; el.expiry.disabled = isStock;
+      if (isStock) { el.strike.innerHTML = `<option value="">—</option>`; updateQuote(); return; }
+      const ex = state.expiries.find((e) => e.code === el.expiry.value);
+      const cur = Number(el.strike.value);
+      const strikes = ex ? ex.strikes.filter((s) => s[type]) : [];
+      el.strike.innerHTML = strikes.map((s) => `<option value="${s.strike}">${fmt0(s.strike)}${s[type].liquid ? "" : " · sin puntas"}</option>`).join("");
+      const atm = nearest(strikes.map((s) => s.strike), state.spot ?? 0);
+      el.strike.value = strikes.some((s) => s.strike === cur) ? cur : (atm ?? "");
+      updateQuote();
+    }
+
+    function formLeg() {
+      const type = el.type.value, side = Number(el.side.value);
+      return { type, side, expiry: type === "S" ? null : el.expiry.value, strike: type === "S" ? null : Number(el.strike.value) };
+    }
+
+    function updateQuote() {
+      const l = formLeg();
+      const q = quoteFor(l);
+      el.quote.innerHTML = q ? `${q.ticker} · bid <b>${fmt(q.bid)}</b> · ask <b>${fmt(q.ask)}</b> · last ${fmt(q.last)}` : "Sin cotización";
+      const mp = marketPrice(q, l.side);
+      el.price.value = isFinite(mp) && mp > 0 ? mp.toFixed(2) : "";
+    }
+
+    function addLeg() {
+      const l = formLeg();
+      const qty = Math.max(1, Math.floor(Number(el.qty.value) || 1));
+      const price = Number(el.price.value);
+      if (!(price >= 0) || el.price.value === "") { el.price.focus(); return; }
+      if (l.type !== "S" && !l.strike) return;
+      const q = quoteFor(l);
+      data.current.legs.push({ type: l.type, expiry: l.expiry, strike: l.strike, qty: qty * l.side, price, ticker: q?.ticker ?? (l.type === "S" ? UNDERLYING : `${l.type === "C" ? "CALL" : "PUT"} ${l.strike}`) });
+      save(); render();
+    }
+
+    function fillSaved() {
+      const names = Object.keys(data.saved).sort((a, b) => a.localeCompare(b));
+      el.saved.innerHTML = `<option value="">Guardadas… (${names.length})</option>` + names.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${n}</option>`).join("");
+      el.saved.value = data.saved[data.current.name] ? data.current.name : "";
+      el.btnDel.disabled = !data.saved[data.current.name];
+    }
+
+    // Pata del builder → pata del motor de payoff. Acciones: strike = precio pagado y payoff por lote de 100.
+    const toEngineLeg = (l) => ({ type: l.type, strike: l.type === "S" ? l.price : l.strike, qty: l.qty, price: l.price });
+
+    function render() {
+      fillSaved();
+      el.name.value = data.current.name;
+      const legs = data.current.legs;
+      const S = state.spot;
+      const has = legs.length > 0 && S > 0;
+      el.empty.classList.toggle("hidden", has);
+      el.result.classList.toggle("hidden", !has);
+      if (chart) { chart.destroy(); chart = null; }
+      if (!has) { el.legs.innerHTML = ""; return; }
+
+      const a = analyze(legs.map(toEngineLeg), S);
+      el.summary.innerHTML = `<div class="card-head"><div><h3>${data.current.name || "Estrategia sin nombre"}</h3><div class="sub">${legs.length} pata${legs.length === 1 ? "" : "s"} · GGAL $ ${fmt(S)}</div></div>${creditHTML(a, S)}</div>${metricsHTML(a, S)}`;
+
+      el.legs.innerHTML = legs.map((l, i) => {
+        const q = quoteFor(l);
+        const net = -l.qty * l.price * CONTRACT_SIZE;
+        return `<tr>
+          <td><span class="side ${l.qty < 0 ? "sell" : "buy"}">${l.qty < 0 ? "VENDE" : "COMPRA"}</span></td>
+          <td class="mono">${l.ticker}${l.type === "S" ? " (×100 acc.)" : ""}</td>
+          <td class="num mono">${Math.abs(l.qty)}</td>
+          <td class="num"><input class="input price-in" type="number" step="0.01" min="0" value="${l.price}" data-i="${i}" title="Precio editable" /></td>
+          <td class="num mono">${fmt(q?.bid)}</td>
+          <td class="num mono">${fmt(q?.ask)}</td>
+          <td class="num mono ${net >= 0 ? "green" : "red"}">${net >= 0 ? "+" : "−"}$ ${fmt0(Math.abs(net))}</td>
+          <td><button class="del" data-del="${i}" title="Quitar pata">✕</button></td>
+        </tr>`;
+      }).join("");
+
+      if ($("#tab-builder").classList.contains("active")) chart = drawChart("chart-builder", a, S, legs.map(toEngineLeg));
+    }
+
+    el.legs.addEventListener("change", (e) => {
+      const i = e.target.dataset.i;
+      if (i == null) return;
+      const v = Number(e.target.value);
+      if (v >= 0) { data.current.legs[i].price = v; save(); render(); }
+    });
+    el.legs.addEventListener("click", (e) => {
+      const i = e.target.dataset.del;
+      if (i == null) return;
+      data.current.legs.splice(Number(i), 1); save(); render();
+    });
+    el.add.addEventListener("click", addLeg);
+    el.type.addEventListener("change", fillStrikes);
+    el.expiry.addEventListener("change", fillStrikes);
+    el.strike.addEventListener("change", updateQuote);
+    el.side.addEventListener("change", updateQuote);
+    el.name.addEventListener("input", () => { data.current.name = el.name.value; save(); fillSaved(); const h = el.summary.querySelector("h3"); if (h) h.textContent = data.current.name || "Estrategia sin nombre"; });
+    el.btnSave.addEventListener("click", () => {
+      const name = el.name.value.trim();
+      if (!name) { el.name.focus(); el.name.placeholder = "Poné un nombre para guardar"; return; }
+      data.current.name = name;
+      data.saved[name] = JSON.parse(JSON.stringify(data.current.legs));
+      save(); render();
+    });
+    el.btnNew.addEventListener("click", () => { data.current = { name: "", legs: [] }; save(); render(); });
+    el.btnDel.addEventListener("click", () => {
+      if (!data.saved[data.current.name]) return;
+      if (!confirm(`¿Eliminar la estrategia guardada «${data.current.name}»?`)) return;
+      delete data.saved[data.current.name]; save(); render();
+    });
+    el.saved.addEventListener("change", () => {
+      const n = el.saved.value;
+      if (!n || !data.saved[n]) return;
+      data.current = { name: n, legs: JSON.parse(JSON.stringify(data.saved[n])) };
+      save(); render();
+    });
+
+    load();
+    return { onData() { fillExpiries(); render(); }, render };
+  })();
+
   Chart.defaults.font.family = "'JetBrains Mono', monospace";
   Chart.defaults.color = "#8a93a8";
+  let savedTab = "auto";
+  try { savedTab = localStorage.getItem(TAB_KEY) || "auto"; } catch { /* ignore */ }
+  if (location.hash === "#builder") savedTab = "builder";
+  if (location.hash === "#auto") savedTab = "auto";
+  showTab(savedTab);
   refresh();
   setAuto(true);
 })();
