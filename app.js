@@ -745,24 +745,20 @@
       if (!card.closest(".tab-panel").classList.contains("active")) return;
       const quoted = d.rows.filter((r) => r.hasQuote);
       const labels = quoted.map((r) => fmt0(r.strike));
-      const vals = [...quoted.map((r) => r.strike), ...quoted.map((r) => r.armar), d.sAsk];
-      const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.08 || 1;
+      const pcts = quoted.map((r) => r.ratio * 100);
+      // Eje acotado para que los pequeños desarbitrajes positivos se vean; las barras muy negativas quedan recortadas.
+      const yMin = Math.max(Math.min(...pcts, 0) * 1.1, -2);
+      const yMax = Math.max(Math.max(...pcts, 0) * 1.4, 0.5);
+      const absMax = Math.max(-yMin, yMax);
       charts[kind] = new Chart(document.getElementById(`chart-par-${kind}`), {
+        type: "bar",
         data: {
           labels,
           datasets: [
             {
-              type: "bar", label: kind === "P" ? "Base (venta asegurada)" : "Base (cobro si ejercen)", data: quoted.map((r) => r.strike),
-              backgroundColor: quoted.map((r) => (r.res > 0 ? "rgba(34,227,154,0.55)" : "rgba(255,77,109,0.45)")),
-              borderColor: quoted.map((r) => (r.res > 0 ? "#22e39a" : "#ff4d6d")), borderWidth: 1.5, borderRadius: 4, order: 2,
-            },
-            {
-              type: "line", label: "Breakeven (costo de armar)", data: quoted.map((r) => r.armar),
-              borderColor: "#ffb84d", backgroundColor: "#ffb84d", borderWidth: 2.5, pointRadius: 4, pointStyle: "rectRot", tension: 0.25, order: 1,
-            },
-            {
-              type: "line", label: "GGAL ask", data: quoted.map(() => d.sAsk),
-              borderColor: "#00d4ff", borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, order: 0,
+              label: "% desarbitraje (Base vs. costo de armar)", data: pcts,
+              backgroundColor: quoted.map((r) => (r.res > 0 ? "rgba(34,227,154,0.6)" : "rgba(255,77,109,0.45)")),
+              borderColor: quoted.map((r) => (r.res > 0 ? "#22e39a" : "#ff4d6d")), borderWidth: 1.5, borderRadius: 4,
             },
           ],
         },
@@ -774,14 +770,18 @@
             tooltip: {
               callbacks: {
                 title: (items) => `${quoted[items[0].dataIndex].o.ticker}`,
-                label: (it) => ` ${it.dataset.label}: $ ${fmt(it.parsed.y)}`,
-                afterBody: (items) => { const r = quoted[items[0].dataIndex]; return [`Resultado: ${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))} (${pct2(r.ratio)} · TNA ${pct2(r.tna)})`]; },
+                label: (it) => { const r = quoted[it.dataIndex]; return ` ${r.res >= 0 ? "+" : ""}${pct2(r.ratio)} · TNA ${pct2(r.tna)}`; },
+                afterBody: (items) => { const r = quoted[items[0].dataIndex]; return [`Armar: $ ${fmt(r.armar)} · Base: $ ${fmt0(r.strike)}`, `Resultado: ${r.res >= 0 ? "+" : "−"}$ ${fmt(Math.abs(r.res))} / acc.`]; },
               },
             },
           },
           scales: {
             x: { grid: { display: false }, ticks: { color: "#8a93a8" } },
-            y: { min: lo - pad, max: hi + pad, grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#8a93a8", callback: (v) => fmt0(v) } },
+            y: {
+              min: yMin, max: yMax,
+              grid: { color: (ctx) => (ctx.tick.value === 0 ? "#ffb84d" : "rgba(255,255,255,0.05)"), lineWidth: (ctx) => (ctx.tick.value === 0 ? 2 : 1) },
+              ticks: { color: "#8a93a8", callback: (v) => `${v > 0 ? "+" : ""}${v.toFixed(absMax < 1 ? 2 : 1)}%` },
+            },
           },
         },
       });
